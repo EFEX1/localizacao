@@ -1,0 +1,919 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Unidades Escolares</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+            border-radius: 8px;
+        }
+        .map-container {
+            height: calc(100vh - 2rem);
+        }
+        .info-card {
+            max-width: 300px;
+        }
+        .delete-btn {
+            background-color: #e53e3e;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .delete-btn:hover {
+            background-color: #c53030;
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 4px;
+            color: white;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+        .toast.success {
+            background-color: #38a169;
+        }
+        .toast.error {
+            background-color: #e53e3e;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-blue-50">
+    <div class="container mx-auto p-4">
+        <h1 class="text-2xl font-bold text-blue-800 mb-4"> Unidades Escolares CRE Blumenau</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Mapa (Coluna da Esquerda) -->
+            <div class="md:col-span-2 bg-white p-4 rounded-lg shadow-md map-container">
+                <div id="map"></div>
+            </div>
+            
+            <!-- Painel de Busca (Coluna da Direita) -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold text-blue-700 mb-4">Buscar Unidades Escolares</h2>
+                
+                <div class="mb-4">
+                    <label for="municipio" class="block text-gray-700 font-medium mb-2">Município</label>
+                    <select id="municipio" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Todos os Municípios</option>
+                        <option value="BLUMENAU">BLUMENAU</option>
+                        <option value="GASPAR">GASPAR</option>
+                        <option value="LUIZ ALVES">LUIZ ALVES</option>
+                        <option value="POMERODE">POMERODE</option>
+                        <option value="ILHOTA">ILHOTA</option>
+                    </select>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="unidade" class="block text-gray-700 font-medium mb-2">Unidade Escolar</label>
+                    <select id="unidade" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Todas as Unidades</option>
+                    </select>
+                </div>
+                
+                <div class="mb-6">
+                    <label for="bairro" class="block text-gray-700 font-medium mb-2">Bairro</label>
+                    <select id="bairro" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Todos os Bairros</option>
+                    </select>
+                </div>
+                
+                <button id="buscar" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-300">
+                    Buscar
+                </button>
+                
+                <div class="mt-6">
+                    <h3 class="text-lg font-semibold text-blue-700 mb-2">Resultados</h3>
+                    <div id="resultados" class="max-h-64 overflow-y-auto">
+                        <p class="text-gray-500 italic">Selecione os filtros e clique em buscar.</p>
+                    </div>
+                </div>
+                
+                <div class="mt-6 pt-4 border-t border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold text-blue-700">Estatísticas</h3>
+                    </div>
+                    <div class="mt-2">
+                        <p><strong>Total de escolas:</strong> <span id="total-escolas">0</span></p>
+                        <p><strong>Escolas exibidas:</strong> <span id="escolas-exibidas">0</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast de notificação -->
+    <div id="toast" class="toast">Mensagem de notificação</div>
+
+    <script>
+        // Dados das escolas
+        let escolasData = [
+            {
+                id: 1,
+                municipio: "BLUMENAU",
+                nome: "CEDUP HERMANN HERING",
+                endereco: "RUA BENJAMIN CONSTANT, 857, ESCOLA AGRICOLA, 89037-501, Santa Catarina - Brasil",
+                bairro: "ESCOLA AGRICOLA",
+                telefone: "(47) 3378 8130",
+                email: "ceduphh@sed.sc.gov.br",
+                lat: -26.89394,
+                lng: -49.09766
+            },
+            {
+                id: 2,
+                municipio: "BLUMENAU",
+                nome: "CEJA DE BLUMENAU",
+                endereco: "RUA ENGENHEIRO PAUL WERNER, 608, ITOUPAVA SECA, 89030-100, Santa Catarina - Brasil",
+                bairro: "ITOUPAVA SECA",
+                telefone: "(47) 3378 8131",
+                email: "cejablumenau@sed.sc.gov.br",
+                lat: -26.89735,
+                lng: -49.08103
+            },
+            {
+                id: 3,
+                municipio: "BLUMENAU",
+                nome: "EEB ADOLPHO KONDER",
+                endereco: "RUA UBERABA, 99, VELHA, 89036-460, Santa Catarina - Brasil",
+                bairro: "VELHA",
+                telefone: "(47) 3378 8132",
+                email: "eebakonder@sed.sc.gov.br",
+                lat: -26.91781,
+                lng: -49.09373
+            },
+            {
+                id: 4,
+                municipio: "GASPAR",
+                nome: "EEB ARNOLDO AGENOR ZIMMERMANN",
+                endereco: "RUA ADRIANO KORMANN, 599, BELA VISTA, 89111-009, Santa Catarina - Brasil",
+                bairro: "BELA VISTA",
+                telefone: "(47) 3378 8133",
+                email: "eebarnoldo@sed.sc.gov.br",
+                lat: -26.90000,
+                lng: -49.00467
+            },
+            {
+                id: 5,
+                municipio: "BLUMENAU",
+                nome: "EEB BRUNO HOELTGEBAUM",
+                endereco: "RUA PAULA HOELTGEBAUM, 131, FORTALEZA, 89057-160, Santa Catarina - Brasil",
+                bairro: "FORTALEZA",
+                telefone: "(47) 3378 8134",
+                email: "eebbhoeltgebaum@sed.sc.gov.br",
+                lat: -26.86954,
+                lng: -49.060080
+            },
+            {
+                id: 6,
+                municipio: "BLUMENAU",
+                nome: "EEB CARLOS TECHENTIN",
+                endereco: "RUA BAHIA, 8222, PASSO MANSO, 89032-525, Santa Catarina - Brasil",
+                bairro: "PASSO MANSO",
+                telefone: "(47) 3378 8135",
+                email: "eebctechentin@sed.sc.gov.br",
+                lat: -26.90139,
+                lng: -49.14801
+            },
+            {
+                id: 7,
+                municipio: "BLUMENAU",
+                nome: "EEB CEL PEDRO CHRISTIANO FEDDERSEN",
+                endereco: "RUA HENRIQUE CONRAD, 145, VILA ITOUPAVA, 89075-350, Santa Catarina - Brasil",
+                bairro: "VILA ITOUPAVA",
+                telefone: "(47) 3378 8136",
+                email: "eebcelfeddersen@sed.sc.gov.br",
+                lat: -26.72298,
+                lng: -49.06677
+            },
+            {
+                id: 8,
+                municipio: "BLUMENAU",
+                nome: "EEB CHRISTOPH AUGENSTEIN",
+                endereco: "RUA ARTHUR LINDNER, 46, SALTO WEISSBACH, 89032-180, Santa Catarina - Brasil",
+                bairro: "SALTO WEISSBACH",
+                telefone: "(47) 3378 8137",
+                email: "eebchristoph@sed.sc.gov.br",
+                lat: -26.89395,
+                lng: -49.12985
+            },
+            {
+                id: 9,
+                municipio: "BLUMENAU",
+                nome: "EEB DR MAX TAVARES D AMARAL",
+                endereco: "RUA VEREADOR ROMARIO DA CONCEICAO BADIA, 365, ITOUPAVA NORTE, 89053-599, Santa Catarina - Brasil",
+                bairro: "ITOUPAVA NORTE",
+                telefone: "(47) 3378 8138",
+                email: "eebmaxtavares@sed.sc.gov.br",
+                lat: -26.87235,
+                lng: -49.08546
+            },
+            {
+                id: 10,
+                municipio: "BLUMENAU",
+                nome: "EEB EMILIO BAUMGART",
+                endereco: "RUA DR PEDRO ZIMMERMANN, 9611, ITOUPAVA CENTRAL, 89069-001, Santa Catarina - Brasil",
+                bairro: "ITOUPAVA CENTRAL",
+                telefone: "(47) 3378 8139",
+                email: "eebemiliob@sed.sc.gov.br",
+                lat: -26.79058,
+                lng: -49.08710
+            },
+            {
+                id: 11,
+                municipio: "BLUMENAU",
+                nome: "EEB ERWIN RADTKE",
+                endereco: "RUA ERWIN MANZKE, 13375, VILA ITOUPAVA, 89075-505, Santa Catarina - Brasil",
+                bairro: "VILA ITOUPAVA",
+                telefone: "(47) 3378 8140",
+                email: "eeberwinradtke@sed.sc.gov.br",
+                lat: -26.64908,
+                lng: -49.12188
+            },
+            {
+                id: 12,
+                municipio: "GASPAR",
+                nome: "EEB FREI GODOFREDO",
+                endereco: "RUA MANOEL BITTENCOURT, 330, SETE DE SETEMBRO, 89114-758, Santa Catarina - Brasil",
+                bairro: "SETE DE SETEMBRO",
+                telefone: "(47) 3378 8141",
+                email: "eebfreigodofredo@sed.sc.gov.br",
+                lat: -26.92726,
+                lng: -48.94115
+            },
+            {
+                id: 13,
+                municipio: "GASPAR",
+                nome: "EEB FREI POLICARPO",
+                endereco: "RUA BONIFACIO HAENDCHEN, 4400, BELCHIOR ALTO, 89117-770, Santa Catarina - Brasil",
+                bairro: "BELCHIOR ALTO",
+                telefone: "(47) 3378 8142",
+                email: "eebfreipolicarpo@sed.sc.gov.br",
+                lat: -26.82764,
+                lng: -49.02910
+            },
+            {
+                id: 14,
+                municipio: "BLUMENAU",
+                nome: "EEB GOV CELSO RAMOS",
+                endereco: "RUA DA GLORIA, 888, GLORIA, 89025-300, Santa Catarina - Brasil",
+                bairro: "GLORIA",
+                telefone: "(47) 3378 8143",
+                email: "eebcelsoramos@sed.sc.gov.br",
+                lat: -26.96386,
+                lng: -49.06044
+            },
+            {
+                id: 15,
+                municipio: "LUIZ ALVES",
+                nome: "EEB GOV IRINEU BORNHAUSEN",
+                endereco: "RUA FAUSTINO MARTINI, 2233, Luiz Alves, 89115-000, Santa Catarina - Brasil",
+                bairro: "RIO DO PEIXE",
+                telefone: "(47) 3378 8144",
+                email: "eebirineubornhausen@sed.sc.gov.br",
+                lat: -26.74376,
+                lng: -48.83725
+            },
+            {
+                id: 16,
+                municipio: "BLUMENAU",
+                nome: "EEB HERCILIO DEEKE",
+                endereco: "RUA JOSE REUTER, 581, VELHA CENTRAL, 89046-000, Santa Catarina - Brasil",
+                bairro: "VELHA CENTRAL",
+                telefone: "(47) 3378 8145",
+                email: "herciliodeeke@sed.sc.gov.br",
+                lat: -26.93357,
+                lng: -49.13394
+            },
+            {
+                id: 17,
+                municipio: "BLUMENAU",
+                nome: "EEB HERMANN HAMANN",
+                endereco: "RUA AUGUST REINHOLD, 350, NOVA ESPERANCA, 89051-660, Santa Catarina - Brasil",
+                bairro: "NOVA ESPERANCA",
+                telefone: "(47) 3378 8146",
+                email: "eebhamann@sed.sc.gov.br",
+                lat: -26.88433,
+                lng: -49.05027
+            },
+            {
+                id: 18,
+                municipio: "GASPAR",
+                nome: "EEB IVO D AQUINO",
+                endereco: "RUA JOSE HONORATO MULLER, 259, COLONINHA, 89110-170, Santa Catarina - Brasil",
+                bairro: "COLONINHA",
+                telefone: "(47) 3378 8147",
+                email: "eebivodaquino@sed.sc.gov.br",
+                lat: -26.92695,
+                lng: -48.96602
+            },
+            {
+                id: 19,
+                municipio: "BLUMENAU",
+                nome: "EEB JOAO DURVAL MULLER",
+                endereco: "RUA CARL KAUN, 60, VELHA CENTRAL, 89046-625, Santa Catarina - Brasil",
+                bairro: "VELHA CENTRAL",
+                telefone: "(47) 3378 8148",
+                email: "eebjdurval@sed.sc.gov.br",
+                lat: -26.93665,
+                lng: -49.15046
+            },
+            {
+                id: 20,
+                municipio: "LUIZ ALVES",
+                nome: "EEB JOAO GAYA",
+                endereco: "RUA BALTAZAR SCHMITT, 235, CENTRO, 89128-000, Santa Catarina - Brasil",
+                bairro: "CENTRO",
+                telefone: "(47) 3378 8149",
+                email: "eebjoaogaya@sed.sc.gov.br",
+                lat: -26.72487,
+                lng: -48.93103
+            },
+            {
+                id: 21,
+                municipio: "BLUMENAU",
+                nome: "EEB JONAS R COELHO NEVES",
+                endereco: "RUA DENIS DIDEROT, 125, FIDELIS, 89060-285, Santa Catarina - Brasil",
+                bairro: "FIDELIS",
+                telefone: "(47) 3378 8150",
+                email: "eebjonasneves@sed.sc.gov.br",
+                lat: -26.84966,
+                lng: -49.07211
+            },
+            {
+                id: 22,
+                municipio: "POMERODE",
+                nome: "EEB JOSE BONIFACIO",
+                endereco: "RUA FREDERICO WEEGE, 146, CENTRO, 89107-000, Santa Catarina - Brasil",
+                bairro: "CENTRO",
+                telefone: "(47) 3378 8151",
+                email: "eebjosebonifacio@sed.sc.gov.br",
+                lat: -26.73686,
+                lng: -49.17745
+            },
+            {
+                id: 23,
+                municipio: "BLUMENAU",
+                nome: "EEB JULIA LOPES DE ALMEIDA",
+                endereco: "RUA VENEZUELA, 127, PONTA AGUDA, 89050-310, Santa Catarina - Brasil",
+                bairro: "PONTA AGUDA",
+                telefone: "(47) 3378 8152",
+                email: "eebjulialopes@sed.sc.gov.br",
+                lat: -26.91442,
+                lng: -49.06475
+            },
+            // Novas escolas adicionadas
+            {
+                id: 24,
+                municipio: "BLUMENAU",
+                nome: "EEB LUIZ DELFINO",
+                endereco: "RUA SAO JOSE, 222, CENTRO, 89010-220, Santa Catarina - Brasil",
+                bairro: "CENTRO",
+                telefone: "(47) 3378 8153",
+                email: "eebluizdelfino@sed.sc.gov.br",
+                lat: -26.91694,
+                lng: -49.07370
+            },
+            {
+                id: 25,
+                municipio: "ILHOTA",
+                nome: "EEB MARCOS KONDER",
+                endereco: "RUA ALMIRANTE TAMANDARE, 134, CENTRO, 88320-000, Santa Catarina - Brasil",
+                bairro: "CENTRO",
+                telefone: "(47) 3378 8154",
+                email: "eebmarcoskonder@sed.sc.gov.br",
+                lat: -26.90418,
+                lng: -48.83015
+            },
+            {
+                id: 26,
+                municipio: "GASPAR",
+                nome: "EEB MARINA VIEIRA LEAL",
+                endereco: "RUA LINO VICENTE ALBERICI, 200, BARRACAO, 89113-314, Santa Catarina - Brasil",
+                bairro: "BARRACAO",
+                telefone: "(47) 3378 8155",
+                email: "eebmarinaleal@sed.sc.gov.br",
+                lat: -26.99764,
+                lng: -48.88955
+            },
+            {
+                id: 27,
+                municipio: "BLUMENAU",
+                nome: "EEB PE JOSE MAURICIO",
+                endereco: "RUA PROGRESSO, 2053, PROGRESSO, 89026-201, Santa Catarina - Brasil",
+                bairro: "PROGRESSO",
+                telefone: "(47) 3378 8156",
+                email: "eebpjmauricio@sed.sc.gov.br",
+                lat: -26.97037,
+                lng: -49.07489
+            },
+            {
+                id: 28,
+                municipio: "BLUMENAU",
+                nome: "EEB PEDRO II",
+                endereco: "ALAMEDA RIO BRANCO, 590, JARDIM BLUMENAU, 89010-300, Santa Catarina - Brasil",
+                bairro: "JARDIM BLUMENAU",
+                telefone: "(47) 3378 8157",
+                email: "eebpedro@sed.sc.gov.br",
+                lat: -26.92741,
+                lng: -49.06213
+            },
+            {
+                id: 29,
+                municipio: "POMERODE",
+                nome: "EEB PRES PRUDENTE DE MORAIS",
+                endereco: "RUA PROFESSOR TANCREDO TASCA, 257, TESTO REGA, 89107-000, Santa Catarina - Brasil",
+                bairro: "TESTO REGA",
+                telefone: "(47) 3378 8158",
+                email: "eebpdemoraes@sed.sc.gov.br",
+                lat: -26.70485,
+                lng: -49.16072
+            },
+            {
+                id: 30,
+                municipio: "BLUMENAU",
+                nome: "EEB PROF AUREA PERPETUA GOMES",
+                endereco: "RUA MARECHAL RONDON, 270, SALTO DO NORTE, 89065-200, Santa Catarina - Brasil",
+                bairro: "SALTO DO NORTE",
+                telefone: "(47) 3378 8159",
+                email: "eebaureaperpetua@sed.sc.gov.br",
+                lat: -26.87597,
+                lng: -49.09939
+            },
+            {
+                id: 31,
+                municipio: "BLUMENAU",
+                nome: "EEB PROF HERIBERTO JOSEPH MULLER",
+                endereco: "RUA GUTTENBERG, 80, FORTALEZA, 89056-050, Santa Catarina - Brasil",
+                bairro: "FORTALEZA",
+                telefone: "(47) 3378 8160",
+                email: "eebheribertomuller@sed.sc.gov.br",
+                lat: -26.87815,
+                lng: -49.06820
+            },
+            {
+                id: 32,
+                municipio: "GASPAR",
+                nome: "EEB PROF HONORIO MIRANDA",
+                endereco: "RUA GUTTENBERG, 80, FORTALEZA, 89056-050, Santa Catarina - Brasil",
+                bairro: "CENTRO",
+                telefone: "(47) 3378 8161",
+                email: "eebhonoriomiranda@sed.sc.gov.br",
+                lat: -26.87815,
+                lng: -49.06820
+            },
+            {
+                id: 33,
+                municipio: "BLUMENAU",
+                nome: "EEB PROF IZOLETE ELIZA GOUVEIA MULLER",
+                endereco: "RUA ADRIANO SCHAEFER, 77, VALPARAISO, 89023-620, Santa Catarina - Brasil",
+                bairro: "VALPARAISO",
+                telefone: "(47) 3378 8162",
+                email: "eebprofizoleteegm@sed.sc.gov.br",
+                lat: -26.95536,
+                lng: -49.07275
+            },
+            {
+                id: 34,
+                municipio: "BLUMENAU",
+                nome: "EEB PROF JOAO WIDEMANN",
+                endereco: "RUA QUATRO DE FEVEREIRO, 64, ITOUPAVA NORTE, 89052-500, Santa Catarina - Brasil",
+                bairro: "ITOUPAVA NORTE",
+                telefone: "(47) 3378 8163",
+                email: "eebjwidemann@sed.sc.gov.br",
+                lat: -26.88723,
+                lng: -49.08229
+            },
+            {
+                id: 35,
+                municipio: "BLUMENAU",
+                nome: "EEB PROF LOTHAR KRIECK",
+                endereco: "RUA GUSTAVO POEPPER, 40, AGUA VERDE, 89037-330, Santa Catarina - Brasil",
+                bairro: "AGUA VERDE",
+                telefone: "(47) 3378 8164",
+                email: "eeblotharkrieck@sed.sc.gov.br",
+                lat: -26.91161,
+                lng: -49.10623
+            },
+            {
+                id: 36,
+                municipio: "BLUMENAU",
+                nome: "EEB PROF NILO BORGHESI",
+                endereco: "RUA JORDAO, 357, PROGRESSO, 89027-710, Santa Catarina - Brasil",
+                bairro: "PROGRESSO",
+                telefone: "(47) 3378 8165",
+                email: "eebnilo@sed.sc.gov.br",
+                lat: -26.99981,
+                lng: -49.06780
+            },
+            {
+                id: 37,
+                municipio: "BLUMENAU",
+                nome: "EEB SANTOS DUMONT",
+                endereco: "RUA AMAZONAS, 2771, GARCIA, 89021-001, Santa Catarina - Brasil",
+                bairro: "GARCIA",
+                telefone: "(47) 3378 8166",
+                email: "eebsantosdumont@sed.sc.gov.br",
+                lat: -26.94263,
+                lng: -49.07064
+            },
+            {
+                id: 38,
+                municipio: "BLUMENAU",
+                nome: "EEB SENADOR EVELASIO VIEIRA",
+                endereco: "RUA PROFESSOR JACOB INEICHEN, 278, ITOUPAVAZINHA, 89066-600, Santa Catarina - Brasil",
+                bairro: "ITOUPAVAZINHA",
+                telefone: "(47) 3378 8167",
+                email: "eebsenadorevelasiovieira@sed.sc.gov.br",
+                lat: -26.85137,
+                lng: -49.11786
+            },
+            {
+                id: 39,
+                municipio: "LUIZ ALVES",
+                nome: "EEB TENENTE ANSELMO JOSE HESS",
+                endereco: "RUA PROFESSOR SIMÃO HESS, 299, VILA DO SALTO, 89128-000, Santa Catarina - Brasil",
+                bairro: "VILA DO SALTO",
+                telefone: "(47) 3378 8168",
+                email: "eebtanselmojhess@sed.sc.gov.br",
+                lat: -26.71072,
+                lng: -48.91325
+            },
+            {
+                id: 40,
+                municipio: "ILHOTA",
+                nome: "EEB VALERIO GOMES",
+                endereco: "RUA JOSE GERALDINO BITTENCOURT, s/n, PEDRA DE AMOLAR, 88320-000, Santa Catarina - Brasil",
+                bairro: "PEDRA DE AMOLAR",
+                telefone: "(47) 3378 8169",
+                email: "eebvaleriogomes@sed.sc.gov.br",
+                lat: -26.85185,
+                lng: -48.77065
+            },
+            {
+                id: 41,
+                municipio: "BLUMENAU",
+                nome: "EEB VICTOR HERING",
+                endereco: "RUA ANTONIO CANDIDO DE FIGUEIREDO, 399, VILA NOVA, 89035-310, Santa Catarina - Brasil",
+                bairro: "VILA NOVA",
+                telefone: "(47) 3378 8170",
+                email: "eebvictorhering@sed.sc.gov.br",
+                lat: -26.90737,
+                lng: -49.09021
+            },
+            {
+                id: 42,
+                municipio: "BLUMENAU",
+                nome: "EEF JOSE VIEIRA CORTE",
+                endereco: "RUA UDO SCHADRACK, 41, PROGRESSO, 89027-405, Santa Catarina - Brasil",
+                bairro: "PROGRESSO",
+                telefone: "(47) 3378 8171",
+                email: "eefjosevcorte@sed.sc.gov.br",
+                lat: -26.99373,
+                lng: -49.09970
+            },
+            {
+                id: 43,
+                municipio: "POMERODE",
+                nome: "EEM ERWIN CURT TEICHMANN",
+                endereco: "RODOVIA SC 418, 10405, TESTO CENTRAL, 89107-000, Santa Catarina - Brasil",
+                bairro: "TESTO CENTRAL",
+                telefone: "(47) 3378 8172",
+                email: "eeberwinradtke@sed.sc.gov.br",
+                lat: -26.82197,
+                lng: -49.15991
+            },
+            {
+                id: 44,
+                municipio: "BLUMENAU",
+                nome: "EEM PROF ELZA HENRIQUETA T PACHECO",
+                endereco: "RUA ANTONIO CANDIDO DE FIGUEIREDO, 399, VILA NOVA, 89035-310, Santa Catarina - Brasil",
+                bairro: "VILA NOVA",
+                telefone: "(47) 3378 8173",
+                email: "eemelza@sed.sc.gov.br",
+                lat: -26.90728,
+                lng: -49.09015
+            },
+            {
+                id: 45,
+                municipio: "BLUMENAU",
+                nome: "EEM PROF WIGAND GELHARDT",
+                endereco: "RUA HEINRICH HEMMER, 2876, BADENFURT, 89070-000, Santa Catarina - Brasil",
+                bairro: "BADENFURT",
+                telefone: "(47) 3378 8174",
+                email: "eemwigand@sed.sc.gov.br",
+                lat: -26.88460,
+                lng: -49.14011
+            }
+        ];
+
+        // Variáveis globais
+        let map;
+        let markers = [];
+        let infoWindow;
+        let escolasExibidas = [];
+        
+        // Inicializar o mapa
+        function initMap() {
+            // Coordenadas centrais de Blumenau
+            const blumenau = { lat: -26.9187, lng: -49.0659 };
+            
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: blumenau,
+                zoom: 11,
+                mapTypeControl: true,
+                streetViewControl: true,
+                fullscreenControl: true,
+            });
+            
+            infoWindow = new google.maps.InfoWindow();
+            
+            // Preencher os filtros
+            preencherFiltros();
+            
+            // Mostrar todas as escolas inicialmente
+            mostrarEscolas(escolasData);
+            
+            // Adicionar evento ao botão de busca
+            document.getElementById('buscar').addEventListener('click', filtrarEscolas);
+            
+            // Adicionar eventos de mudança para os selects
+            document.getElementById('municipio').addEventListener('change', atualizarFiltrosSecundarios);
+            
+            // Atualizar estatísticas
+            atualizarEstatisticas(escolasData, escolasData);
+        }
+        
+        // Preencher os filtros com dados únicos
+        function preencherFiltros() {
+            const bairros = [...new Set(escolasData.map(escola => escola.bairro))].sort();
+            const unidades = [...new Set(escolasData.map(escola => escola.nome))].sort();
+            
+            const bairroSelect = document.getElementById('bairro');
+            const unidadeSelect = document.getElementById('unidade');
+            
+            // Limpar opções atuais, mantendo a primeira
+            while (bairroSelect.options.length > 1) {
+                bairroSelect.remove(1);
+            }
+            
+            while (unidadeSelect.options.length > 1) {
+                unidadeSelect.remove(1);
+            }
+            
+            bairros.forEach(bairro => {
+                const option = document.createElement('option');
+                option.value = bairro;
+                option.textContent = bairro;
+                bairroSelect.appendChild(option);
+            });
+            
+            unidades.forEach(unidade => {
+                const option = document.createElement('option');
+                option.value = unidade;
+                option.textContent = unidade;
+                unidadeSelect.appendChild(option);
+            });
+        }
+        
+        // Atualizar filtros secundários com base no município selecionado
+        function atualizarFiltrosSecundarios() {
+            const municipioSelecionado = document.getElementById('municipio').value;
+            const bairroSelect = document.getElementById('bairro');
+            const unidadeSelect = document.getElementById('unidade');
+            
+            // Limpar opções atuais, mantendo a primeira
+            while (bairroSelect.options.length > 1) {
+                bairroSelect.remove(1);
+            }
+            
+            while (unidadeSelect.options.length > 1) {
+                unidadeSelect.remove(1);
+            }
+            
+            // Filtrar escolas pelo município selecionado ou mostrar todas
+            const escolasFiltradas = municipioSelecionado ? 
+                escolasData.filter(escola => escola.municipio === municipioSelecionado) : 
+                escolasData;
+            
+            // Obter bairros e unidades únicas
+            const bairros = [...new Set(escolasFiltradas.map(escola => escola.bairro))].sort();
+            const unidades = [...new Set(escolasFiltradas.map(escola => escola.nome))].sort();
+            
+            // Adicionar novas opções
+            bairros.forEach(bairro => {
+                const option = document.createElement('option');
+                option.value = bairro;
+                option.textContent = bairro;
+                bairroSelect.appendChild(option);
+            });
+            
+            unidades.forEach(unidade => {
+                const option = document.createElement('option');
+                option.value = unidade;
+                option.textContent = unidade;
+                unidadeSelect.appendChild(option);
+            });
+        }
+        
+        // Filtrar escolas com base nos critérios selecionados
+        function filtrarEscolas() {
+            const municipioSelecionado = document.getElementById('municipio').value;
+            const unidadeSelecionada = document.getElementById('unidade').value;
+            const bairroSelecionado = document.getElementById('bairro').value;
+            
+            let escolasFiltradas = escolasData;
+            
+            if (municipioSelecionado) {
+                escolasFiltradas = escolasFiltradas.filter(escola => escola.municipio === municipioSelecionado);
+            }
+            
+            if (unidadeSelecionada) {
+                escolasFiltradas = escolasFiltradas.filter(escola => escola.nome === unidadeSelecionada);
+            }
+            
+            if (bairroSelecionado) {
+                escolasFiltradas = escolasFiltradas.filter(escola => escola.bairro === bairroSelecionado);
+            }
+            
+            mostrarEscolas(escolasFiltradas);
+            atualizarResultados(escolasFiltradas);
+            atualizarEstatisticas(escolasData, escolasFiltradas);
+        }
+        
+        // Mostrar escolas no mapa
+        function mostrarEscolas(escolas) {
+            // Limpar marcadores existentes
+            limparMarcadores();
+            
+            // Armazenar escolas exibidas
+            escolasExibidas = escolas;
+            
+            // Adicionar novos marcadores
+            escolas.forEach(escola => {
+                const marker = new google.maps.Marker({
+                    position: { lat: escola.lat, lng: escola.lng },
+                    map: map,
+                    title: escola.nome,
+                    animation: google.maps.Animation.DROP
+                });
+                
+                // Adicionar evento de clique para mostrar informações
+                marker.addListener('click', () => {
+                    mostrarInfoEscola(escola, marker);
+                });
+                
+                markers.push(marker);
+            });
+            
+            // Ajustar o zoom para mostrar todos os marcadores
+            if (markers.length > 0) {
+                ajustarZoom();
+            }
+        }
+        
+        // Mostrar informações da escola no infoWindow
+        function mostrarInfoEscola(escola, marker) {
+            const content = `
+                <div class="info-card p-3">
+                    <h3 class="text-lg font-bold text-blue-800 mb-2">${escola.nome}</h3>
+                    <p class="mb-1"><strong>Endereço:</strong> ${escola.endereco}</p>
+                    <p class="mb-1"><strong>Email:</strong> ${escola.email}</p>
+                    <p class="mb-1"><strong>Telefone:</strong> ${escola.telefone}</p>
+                    <div class="mt-3">
+                        <button class="delete-btn" onclick="excluirEscola(${escola.id})">Excluir</button>
+                    </div>
+                </div>
+            `;
+            
+            infoWindow.setContent(content);
+            infoWindow.open(map, marker);
+        }
+        
+        // Excluir escola
+        function excluirEscola(id) {
+            // Confirmar exclusão
+            if (confirm("Tem certeza que deseja excluir esta unidade escolar?")) {
+                // Remover escola dos dados
+                escolasData = escolasData.filter(escola => escola.id !== id);
+                
+                // Fechar infoWindow
+                infoWindow.close();
+                
+                // Atualizar filtros
+                preencherFiltros();
+                
+                // Atualizar mapa
+                filtrarEscolas();
+                
+                // Mostrar notificação
+                mostrarToast("Unidade escolar excluída com sucesso!", "success");
+            }
+        }
+        
+        // Limpar todos os marcadores do mapa
+        function limparMarcadores() {
+            markers.forEach(marker => {
+                marker.setMap(null);
+            });
+            markers = [];
+        }
+        
+        // Ajustar o zoom para mostrar todos os marcadores
+        function ajustarZoom() {
+            const bounds = new google.maps.LatLngBounds();
+            markers.forEach(marker => {
+                bounds.extend(marker.getPosition());
+            });
+            map.fitBounds(bounds);
+            
+            // Se houver apenas um marcador, definir um zoom apropriado
+            if (markers.length === 1) {
+                map.setZoom(15);
+            }
+        }
+        
+        // Atualizar a lista de resultados
+        function atualizarResultados(escolas) {
+            const resultadosDiv = document.getElementById('resultados');
+            resultadosDiv.innerHTML = '';
+            
+            if (escolas.length === 0) {
+                resultadosDiv.innerHTML = '<p class="text-gray-500 italic">Nenhuma escola encontrada com os filtros selecionados.</p>';
+                return;
+            }
+            
+            escolas.forEach(escola => {
+                const escolaDiv = document.createElement('div');
+                escolaDiv.className = 'mb-3 p-3 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100';
+                escolaDiv.innerHTML = `
+                    <h4 class="font-semibold text-blue-700">${escola.nome}</h4>
+                    <p class="text-sm text-gray-600">${escola.bairro}, ${escola.municipio}</p>
+                    <div class="flex justify-end mt-2">
+                        <button class="text-xs text-red-600 hover:text-red-800" onclick="excluirEscola(${escola.id})">Excluir</button>
+                    </div>
+                `;
+                
+                // Adicionar evento de clique para centralizar no mapa
+                escolaDiv.addEventListener('click', (e) => {
+                    // Evitar que o clique no botão de excluir acione este evento
+                    if (e.target.tagName !== 'BUTTON') {
+                        map.setCenter({ lat: escola.lat, lng: escola.lng });
+                        map.setZoom(16);
+                        
+                        // Encontrar o marcador correspondente e mostrar info
+                        const marker = markers.find(m => m.getTitle() === escola.nome);
+                        if (marker) {
+                            mostrarInfoEscola(escola, marker);
+                        }
+                    }
+                });
+                
+                resultadosDiv.appendChild(escolaDiv);
+            });
+        }
+        
+        // Atualizar estatísticas
+        function atualizarEstatisticas(todasEscolas, escolasFiltradas) {
+            document.getElementById('total-escolas').textContent = todasEscolas.length;
+            document.getElementById('escolas-exibidas').textContent = escolasFiltradas.length;
+        }
+        
+        // Mostrar toast de notificação
+        function mostrarToast(mensagem, tipo) {
+            const toast = document.getElementById('toast');
+            toast.textContent = mensagem;
+            toast.className = `toast ${tipo}`;
+            
+            // Mostrar toast
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+            
+            // Esconder toast após 3 segundos
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+    
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDiRiwx8vdBpkFNXHstratvdEWHgZZug3w&callback=initMap">
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'93ca446b3391f1cd',t:'MTc0NjcyMTA0Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
