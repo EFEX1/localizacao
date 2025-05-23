@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -20,17 +19,6 @@
         }
         .info-card {
             max-width: 300px;
-        }
-        .delete-btn {
-            background-color: #e53e3e;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .delete-btn:hover {
-            background-color: #c53030;
         }
         .toast {
             position: fixed;
@@ -54,7 +42,7 @@
         }
     </style>
 </head>
-<body class="bg-blue-50">
+<body class="bg-white"> <!-- Alterado de bg-blue-50 para bg-white -->
     <div class="container mx-auto p-4">
         <h1 class="text-2xl font-bold text-blue-800 mb-4"> Unidades Escolares CRE Blumenau</h1>
         
@@ -796,7 +784,8 @@
                     <p class="mb-1"><strong>Email:</strong> ${escola.email}</p>
                     <p class="mb-1"><strong>Telefone:</strong> ${escola.telefone}</p>
                     <div class="mt-3">
-                        <button class="delete-btn" onclick="excluirEscola(${escola.id})">Excluir</button>
+                        <!-- Botão Fechar no mapa -->
+                        <button class="bg-gray-500 hover:bg-gray-600 text-white font-medium py-1 px-3 rounded-md transition duration-300" onclick="infoWindow.close()">Fechar</button>
                     </div>
                 </div>
             `;
@@ -805,26 +794,7 @@
             infoWindow.open(map, marker);
         }
         
-        // Excluir escola
-        function excluirEscola(id) {
-            // Confirmar exclusão
-            if (confirm("Tem certeza que deseja excluir esta unidade escolar?")) {
-                // Remover escola dos dados
-                escolasData = escolasData.filter(escola => escola.id !== id);
-                
-                // Fechar infoWindow
-                infoWindow.close();
-                
-                // Atualizar filtros
-                preencherFiltros();
-                
-                // Atualizar mapa
-                filtrarEscolas();
-                
-                // Mostrar notificação
-                mostrarToast("Unidade escolar excluída com sucesso!", "success");
-            }
-        }
+        // A função excluirEscola foi removida
         
         // Limpar todos os marcadores do mapa
         function limparMarcadores() {
@@ -865,13 +835,14 @@
                     <h4 class="font-semibold text-blue-700">${escola.nome}</h4>
                     <p class="text-sm text-gray-600">${escola.bairro}, ${escola.municipio}</p>
                     <div class="flex justify-end mt-2">
-                        <button class="text-xs text-red-600 hover:text-red-800" onclick="excluirEscola(${escola.id})">Excluir</button>
+                        <!-- Botão Fechar no cartão (sem função de exclusão) -->
+                        <button class="text-xs text-gray-600 hover:text-gray-800">Fechar</button>
                     </div>
                 `;
                 
                 // Adicionar evento de clique para centralizar no mapa
                 escolaDiv.addEventListener('click', (e) => {
-                    // Evitar que o clique no botão de excluir acione este evento
+                    // Evitar que o clique no botão (agora "Fechar") acione este evento
                     if (e.target.tagName !== 'BUTTON') {
                         map.setCenter({ lat: escola.lat, lng: escola.lng });
                         map.setZoom(16);
